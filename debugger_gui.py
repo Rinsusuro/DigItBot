@@ -86,15 +86,24 @@ class DebuggerGUI:
         return frame
 
     def show_debugger(self):
-        """Display the live screen capture feed with bar detection and keep it on top."""
+        """Display the live screen capture feed with bar detection and match its size to the stream."""
         window_name = "Debugger - Bar Detection"
-        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)  # Allow resizing
+        cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)  # Auto-resize based on frame dimensions
         cv2.setWindowProperty(window_name, cv2.WND_PROP_TOPMOST, 1)  # Keep on top
+
+        first_frame = True  # Track if it's the first frame to set window size
 
         while self.running:
             if not self.frame_queue.empty():
                 frame = self.frame_queue.get()
                 frame = self.process_frame(frame)  # Process frame for bar detection
+
+                # Set window size to match frame size on the first frame
+                if first_frame:
+                    height, width, _ = frame.shape
+                    cv2.resizeWindow(window_name, width, height)
+                    first_frame = False  # Only set size once
+
                 cv2.imshow(window_name, frame)
                 cv2.setWindowProperty(window_name, cv2.WND_PROP_TOPMOST, 1)  # Reinforce on top
 

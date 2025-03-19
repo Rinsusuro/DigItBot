@@ -1,7 +1,7 @@
 import queue
 import threading
 from screen_capture import LiveScreenCapture
-from debugger_gui import DebuggerGUI  # Assuming this exists
+from debugger_gui import DebuggerGUI
 
 if __name__ == "__main__":
     frame_queue = queue.Queue(maxsize=10)
