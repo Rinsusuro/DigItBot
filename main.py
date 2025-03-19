@@ -1,29 +1,32 @@
-import pyautogui
+import cv2
+import numpy as np
 import mss
+import queue
+import threading
 from pynput import mouse
-import time
 
 
-class ScreenCapture:
-    def __init__(self):
+class LiveScreenCapture:
+    def __init__(self, frame_queue):
         self.start_x = None
         self.start_y = None
         self.end_x = None
         self.end_y = None
-        self.capture_ready = False
+        self.region = None
+        self.frame_queue = frame_queue
+        self.running = True
 
     def on_click(self, x, y, button, pressed):
-        """Track mouse press and release."""
+        """Track mouse press and release to determine the region."""
         if pressed:
             self.start_x, self.start_y = x, y
         else:
             self.end_x, self.end_y = x, y
-            self.capture_ready = True
             return False  # Stop listener
 
     def get_region(self):
         """Calculate (x, y, width, height) from mouse drag."""
-        if self.start_x is None or self.start_y is None or self.end_x is None or self.end_y is None:
+        if None in (self.start_x, self.start_y, self.end_x, self.end_y):
             print("No region selected.")
             return None
 
@@ -32,33 +35,46 @@ class ScreenCapture:
         width = abs(self.end_x - self.start_x)
         height = abs(self.end_y - self.start_y)
 
-        return (x, y, width, height)
+        return {"top": y, "left": x, "width": width, "height": height}
 
-    def capture_screen(self, region):
-        """Capture screenshot using mss."""
-        if not region:
-            print("Invalid region. Screenshot not taken.")
+    def stream_screenshots(self):
+        """Continuously capture the selected screen region and send frames to the queue."""
+        if not self.region:
+            print("Invalid region. Exiting...")
             return
 
-        x, y, width, height = region
-        print(f"Capturing region: {region}")
-
-        time.sleep(1)  # Short delay to allow repositioning
-
         with mss.mss() as sct:
-            screenshot = sct.grab({"top": y, "left": x, "width": width, "height": height})
-            filename = "screenshot.png"
-            mss.tools.to_png(screenshot.rgb, screenshot.size, output=filename)
-            print(f"Screenshot saved as {filename}")
+            while self.running:
+                # Capture the screen region
+                screenshot = sct.grab(self.region)
+
+                # Convert the image to a NumPy array
+                img = np.array(screenshot)
+
+                # Convert from BGR (mss default) to RGB for OpenCV
+                img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+
+                # Send frame to the queue for the debugger
+                if not self.frame_queue.full():
+                    self.frame_queue.put(img)
 
 
 if __name__ == "__main__":
-    capture_tool = ScreenCapture()
+    frame_queue = queue.Queue(maxsize=10)
+
+    capture_tool = LiveScreenCapture(frame_queue)
 
     print("Click and drag to select a region...")
     with mouse.Listener(on_click=capture_tool.on_click) as listener:
         listener.join()
 
-    selected_region = capture_tool.get_region()
-    if selected_region:
-        capture_tool.capture_screen(selected_region)
+    capture_tool.region = capture_tool.get_region()
+
+    if capture_tool.region:
+        # Run the debugger GUI in a separate thread
+        from debugger_gui import DebuggerGUI
+
+        debug_thread = threading.Thread(target=DebuggerGUI, args=(frame_queue,))
+        debug_thread.start()
+
+        capture_tool.stream_screenshots()
