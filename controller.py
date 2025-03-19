@@ -8,6 +8,7 @@ class Controller:
         self.centers_queue = centers_queue
         self.mouse = MouseController()
         self.running = True
+        self.last_click_time = time.time()  # Track last click time
 
     def process_centers(self):
         """Continuously checks center values and controls left-clicking."""
@@ -27,6 +28,12 @@ class Controller:
                         self.mouse.press(Button.left)  # Hold left click
                     else:
                         self.mouse.release(Button.left)  # Release left click
+
+            # Perform a quick click every 3 seconds
+            if time.time() - self.last_click_time >= 3:
+                self.mouse.click(Button.left, 1)  # Quick click
+                print("Quick Click Triggered")
+                self.last_click_time = time.time()  # Reset timer
 
             time.sleep(0.01)  # Small delay to prevent excessive CPU usage
 
