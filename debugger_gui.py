@@ -2,65 +2,91 @@ import cv2
 import numpy as np
 import queue
 
-
 class DebuggerGUI:
     def __init__(self, frame_queue):
         self.frame_queue = frame_queue
         self.running = True
         self.show_debugger()
 
+    def detect_vertical_edges(self, gray_image):
+        """Detects vertical edges using Sobel edge detection."""
+        sobel_x = cv2.Sobel(gray_image, cv2.CV_64F, 1, 0, ksize=3)  # Detect vertical edges
+        abs_sobel_x = np.absolute(sobel_x)  # Get absolute values
+        sobel_x = np.uint8(255 * abs_sobel_x / np.max(abs_sobel_x))  # Normalize to 0-255
+
+        return sobel_x
+
+    def detect_edge_based_bar(self, edge_image):
+        """Finds the leftmost and rightmost vertical contour edges to define the bar."""
+        height, width = edge_image.shape
+
+        # Scan left to right for the first strong vertical edge
+        left_x = 0
+        while left_x < width - 1 and np.mean(edge_image[:, left_x]) < 50:  # Edge threshold
+            left_x += 1
+
+        # Scan right to left for the first strong vertical edge
+        right_x = width - 1
+        while right_x > 0 and np.mean(edge_image[:, right_x]) < 50:
+            right_x -= 1
+
+        # Ensure valid detection
+        if left_x < right_x:
+            bar_x = left_x
+            bar_width = right_x - left_x
+            bar_y = 0  # Full height
+            bar_height = height
+
+            return (bar_x, bar_y, bar_width, bar_height)
+
+        return None
+
+    def detect_lightest_vertical_bar(self, frame):
+        """Finds the lightest vertical region in the frame, assuming it's the indicator."""
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # Sum pixel values along vertical columns to find the brightest one
+        column_sums = np.sum(gray, axis=0)
+
+        # Find the column index with the highest brightness
+        lightest_x = np.argmax(column_sums)
+
+        # Find the vertical range of this column
+        y_start = 0
+        y_end = frame.shape[0]
+
+        return (lightest_x, y_start, 5, y_end)  # Width set to 5 for visibility
+
     def process_frame(self, frame):
-        """Detects and highlights the bar in the given frame."""
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Convert to grayscale
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)  # Reduce noise
+        """Detects and highlights the horizontal bar and vertical indicator."""
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
-        # Adaptive thresholding for better edge detection
-        thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                       cv2.THRESH_BINARY_INV, 11, 2)
+        # Detect vertical edges using Sobel
+        edge_image = self.detect_vertical_edges(blurred)
 
-        # Dilate to thicken edges
-        kernel = np.ones((3, 3), np.uint8)
-        dilated = cv2.dilate(thresh, kernel, iterations=1)
+        # Detect the bar using vertical edge contours
+        bar = self.detect_edge_based_bar(edge_image)
 
-        # Find contours
-        contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # Detect the vertical indicator
+        indicator = self.detect_lightest_vertical_bar(frame)
 
-        detected = False
-        for cnt in contours:
-            # Get convex hull (fixes rounded edges)
-            hull = cv2.convexHull(cnt)
-            rect = cv2.minAreaRect(hull)  # Get rotated bounding box
-            box = cv2.boxPoints(rect)
-            box = np.intp(box)
+        # Draw the detected bar
+        if bar:
+            x, y, w, h = bar
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.putText(frame, "Bar", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-            x, y, w, h = cv2.boundingRect(hull)
-            aspect_ratio = w / float(h)
-
-            # Filter shapes that resemble a bar
-            if 2.0 < aspect_ratio < 10.0 and w * h > 500:
-                angle = rect[-1]
-                if angle < -45:
-                    angle += 90  # Normalize angle
-
-                cv2.drawContours(frame, [box], 0, (0, 255, 0), 2)  # Draw bounding box
-                cv2.putText(frame, f"Angle: {angle:.2f}", (x, y - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                detected = True
-
-        # Fallback: Hough Line Transform if bar wasn't detected
-        if not detected:
-            edges = cv2.Canny(blurred, 50, 150)
-            lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 50, minLineLength=50, maxLineGap=10)
-
-            if lines is not None:
-                for line in lines:
-                    x1, y1, x2, y2 = line[0]
-                    cv2.line(frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
+        # Draw the detected indicator (lightest vertical bar)
+        if indicator:
+            x, y, w, h = indicator
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+            cv2.putText(frame, "Indicator", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
         return frame
 
     def show_debugger(self):
-        """Display the live screen capture feed with bar detection."""
+        """Display the live screen capture feed with bar detection and keep it on top."""
         window_name = "Debugger - Bar Detection"
         cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)  # Allow resizing
         cv2.setWindowProperty(window_name, cv2.WND_PROP_TOPMOST, 1)  # Keep on top
@@ -70,6 +96,7 @@ class DebuggerGUI:
                 frame = self.frame_queue.get()
                 frame = self.process_frame(frame)  # Process frame for bar detection
                 cv2.imshow(window_name, frame)
+                cv2.setWindowProperty(window_name, cv2.WND_PROP_TOPMOST, 1)  # Reinforce on top
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 self.running = False
