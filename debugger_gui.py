@@ -3,8 +3,9 @@ import numpy as np
 import queue
 
 class DebuggerGUI:
-    def __init__(self, frame_queue):
+    def __init__(self, frame_queue, centers_queue):
         self.frame_queue = frame_queue
+        self.centers_queue = centers_queue  # Store the queue reference
         self.running = True
         self.show_debugger()
 
@@ -70,6 +71,16 @@ class DebuggerGUI:
 
         # Detect the vertical indicator
         indicator = self.detect_lightest_vertical_bar(frame)
+
+        # Store center-x values
+        bar_center_x = (bar[0] + bar[2] // 2) if bar else None  # bar[0] is x, bar[2] is width
+        indicator_center_x = (indicator[0] + indicator[2] // 2) if indicator else None  # indicator[0] is x, indicator[2] is width
+
+        # Send centers to queue with overflow handling
+        if bar_center_x is not None and indicator_center_x is not None:
+            if self.centers_queue.full():  # If the queue is full, remove the oldest entry
+                self.centers_queue.get()
+            self.centers_queue.put({"bar": bar_center_x, "indicator": indicator_center_x})
 
         # Draw the detected bar
         if bar:

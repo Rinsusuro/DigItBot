@@ -5,13 +5,14 @@ from debugger_gui import DebuggerGUI
 
 if __name__ == "__main__":
     frame_queue = queue.Queue(maxsize=10)
+    centers_queue = queue.Queue(maxsize=10)
 
     capture_tool = LiveScreenCapture(frame_queue)
     capture_tool.start_mouse_listener()
 
     if capture_tool.region:
         # Run the debugger GUI in a separate thread
-        debug_thread = threading.Thread(target=DebuggerGUI, args=(frame_queue,))
+        debug_thread = threading.Thread(target=DebuggerGUI, args=(frame_queue, centers_queue))
         debug_thread.start()
 
         # Start streaming screenshots
