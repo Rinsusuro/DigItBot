@@ -12,11 +12,15 @@ class Controller:
     def process_centers(self):
         """Continuously checks center values and controls left-clicking."""
         while self.running:
-            if not self.centers_queue.empty():
-                centers = self.centers_queue.get()  # Get the latest center values
+            latest_centers = None
 
-                bar_center = centers.get("bar", None)
-                indicator_center = centers.get("indicator", None)
+            # Keep removing old entries until only the latest one remains
+            while not self.centers_queue.empty():
+                latest_centers = self.centers_queue.get()
+
+            if latest_centers:  # Process only the latest available entry
+                bar_center = latest_centers.get("bar", None)
+                indicator_center = latest_centers.get("indicator", None)
 
                 if bar_center is not None and indicator_center is not None:
                     if bar_center > indicator_center:
