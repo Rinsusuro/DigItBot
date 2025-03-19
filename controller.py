@@ -1,0 +1,31 @@
+import queue
+import threading
+import time
+from pynput.mouse import Controller as MouseController, Button
+
+class Controller:
+    def __init__(self, centers_queue):
+        self.centers_queue = centers_queue
+        self.mouse = MouseController()
+        self.running = True
+
+    def process_centers(self):
+        """Continuously checks center values and controls left-clicking."""
+        while self.running:
+            if not self.centers_queue.empty():
+                centers = self.centers_queue.get()  # Get the latest center values
+
+                bar_center = centers.get("bar", None)
+                indicator_center = centers.get("indicator", None)
+
+                if bar_center is not None and indicator_center is not None:
+                    if bar_center > indicator_center:
+                        self.mouse.press(Button.left)  # Hold left click
+                    else:
+                        self.mouse.release(Button.left)  # Release left click
+
+            time.sleep(0.01)  # Small delay to prevent excessive CPU usage
+
+    def stop(self):
+        """Stops the controller thread."""
+        self.running = False
