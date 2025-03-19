@@ -1,6 +1,7 @@
 import queue
 import threading
 import time
+import keyboard  # For hotkey detection
 from pynput.mouse import Controller as MouseController, Button
 
 class Controller:
@@ -9,6 +10,10 @@ class Controller:
         self.mouse = MouseController()
         self.running = True
         self.last_click_time = time.time()  # Track last click time
+
+        # Set up hotkey for termination
+        keyboard.add_hotkey("esc", self.stop)
+        print("[INFO] Press 'ESC' to terminate the controller.")
 
     def process_centers(self):
         """Continuously checks center values and controls left-clicking."""
@@ -38,5 +43,9 @@ class Controller:
             time.sleep(0.01)  # Small delay to prevent excessive CPU usage
 
     def stop(self):
-        """Stops the controller thread."""
+        """Stops the controller thread and exits the program."""
+        print("\n[INFO] Terminating Controller...")
         self.running = False
+        self.mouse.release(Button.left)  # Ensure left click is released before exiting
+        print("[INFO] Controller Stopped. Exiting program.")
+        exit(0)  # Force exit
