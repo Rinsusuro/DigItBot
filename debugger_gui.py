@@ -23,12 +23,12 @@ class DebuggerGUI:
 
         # Scan left to right for the first strong vertical edge
         left_x = 0
-        while left_x < width - 1 and np.mean(edge_image[:, left_x]) < 25:  # Edge threshold
+        while left_x < width - 1 and np.mean(edge_image[:, left_x]) < 30:  # Edge threshold
             left_x += 1
 
         # Scan right to left for the first strong vertical edge
         right_x = width - 1
-        while right_x > 0 and np.mean(edge_image[:, right_x]) < 25:
+        while right_x > 0 and np.mean(edge_image[:, right_x]) < 30:
             right_x -= 1
 
         # Ensure valid detection
@@ -43,20 +43,32 @@ class DebuggerGUI:
         return None
 
     def detect_lightest_vertical_bar(self, frame):
-        """Finds the lightest vertical region in the frame, assuming it's the indicator."""
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        """Finds the vertical bar based on its expected color (#989898 in RGB) with a precision threshold."""
 
-        # Sum pixel values along vertical columns to find the brightest one
-        column_sums = np.sum(gray, axis=0)
+        # Convert frame to RGB (OpenCV loads as BGR by default)
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # Find the column index with the highest brightness
-        lightest_x = np.argmax(column_sums)
+        # Target color (152, 152, 152) in RGB
+        target_color = np.array([152, 152, 152])
 
-        # Find the vertical range of this column
+        # Compute absolute difference from target color for each pixel
+        diff = np.abs(rgb_frame - target_color)  # Shape: (height, width, 3)
+
+        # Sum the differences across RGB channels (lower sum = closer match)
+        color_distance = np.sum(diff, axis=2)
+
+        # Threshold: Columns where most pixels are within ±3 of target color
+        precision_threshold = 3
+        matched_pixels = np.sum(color_distance <= precision_threshold * 3, axis=0)  # Sum along height
+
+        # Find the column index with the highest match count
+        bar_x = np.argmax(matched_pixels)
+
+        # Define the vertical range of this column
         y_start = 0
         y_end = frame.shape[0]
 
-        return (lightest_x, y_start, 5, y_end)  # Width set to 5 for visibility
+        return (bar_x, y_start, 5, y_end)  # Width set to 5 for visibility
 
     def process_frame(self, frame):
         """Detects and highlights the horizontal bar and vertical indicator."""
