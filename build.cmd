@@ -1,0 +1,1 @@
+pyinstaller --onefile --noconsole --add-data "demonstration.png;." main.py
