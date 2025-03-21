@@ -37,7 +37,6 @@ class Controller:
             # Perform a quick click every 3 seconds
             if time.time() - self.last_click_time >= 3:
                 self.mouse.click(Button.left, 1)  # Quick click
-                print("Quick Click Triggered")
                 self.last_click_time = time.time()  # Reset timer
 
             time.sleep(0.01)  # Small delay to prevent excessive CPU usage
