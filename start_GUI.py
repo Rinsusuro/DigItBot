@@ -1,5 +1,15 @@
 import tkinter as tk
 from PIL import Image, ImageTk  # Requires Pillow
+import sys
+import os
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller .exe """
+    try:
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 def show_start_gui():
     """Blocks execution until Start is clicked."""
@@ -49,7 +59,8 @@ def show_start_gui():
 
     # Load and display image
     try:
-        img = Image.open("demonstration.png")
+        img_path = resource_path("demonstration.png")
+        img = Image.open(img_path)
         img = img.resize((650, 300), Image.ANTIALIAS)
         photo = ImageTk.PhotoImage(img)
         image_label = tk.Label(container, image=photo)
