@@ -33,8 +33,8 @@ def show_start_gui():
         "3. Drag out a snippet of the bar as shown on the picture below:",
         "4. Make sure the bot's debugging tool is working by confirming the debugging window.",
         "5. Do not move the window and do not move the mouse around or outside the clicking area.",
-        "6. AFK a while.",
-        "7. Press [ESC] when you are done or want to adjust any windows/mouse."
+        "6. Go AFK for a while.",
+        "7. Press [ESC] to terminate the bot."
     ]
 
     for text in instructions:
