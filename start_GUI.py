@@ -1,10 +1,11 @@
 import tkinter as tk
-from tkinter import PhotoImage
 from PIL import Image, ImageTk  # Requires Pillow
 
 def show_start_gui():
     """Blocks execution until Start is clicked."""
+    user_started = {'value': False}
     def on_start():
+        user_started['value'] = True
         root.destroy()  # Close the GUI window
 
     root = tk.Tk()
@@ -63,3 +64,5 @@ def show_start_gui():
     start_button.pack(pady=20, ipady=50)
 
     root.mainloop()
+
+    return user_started['value']
