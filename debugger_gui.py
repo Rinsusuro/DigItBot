@@ -1,13 +1,14 @@
 import cv2
 import numpy as np
-import queue
+from pynput import keyboard
 
 class DebuggerGUI:
     def __init__(self, frame_queue, centers_queue):
         self.frame_queue = frame_queue
         self.centers_queue = centers_queue  # Store the queue reference
         self.running = True
-        self.show_debugger()
+        self.window_name = "Debugger - Bar Detection"
+        self.esc_pressed = False
 
     def detect_vertical_edges(self, gray_image):
         """Detects vertical edges using Sobel edge detection."""
@@ -108,30 +109,47 @@ class DebuggerGUI:
 
         return frame
 
-    def show_debugger(self):
-        """Display the live screen capture feed with bar detection and match its size to the stream."""
-        window_name = "Debugger - Bar Detection"
-        cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)  # Auto-resize based on frame dimensions
-        cv2.setWindowProperty(window_name, cv2.WND_PROP_TOPMOST, 1)  # Keep on top
+    def run(self):
+        # Start the global key listener in this thread (blocking call)
+        listener = keyboard.Listener(on_press=self._on_key_press)
+        listener.start()  # Non-blocking, but still runs in this thread
 
-        first_frame = True  # Track if it's the first frame to set window size
+        # OpenCV window setup
+        cv2.namedWindow(self.window_name, cv2.WINDOW_AUTOSIZE)
+        cv2.setWindowProperty(self.window_name, cv2.WND_PROP_TOPMOST, 1)
+
+        first_frame = True
 
         while self.running:
             if not self.frame_queue.empty():
                 frame = self.frame_queue.get()
-                frame = self.process_frame(frame)  # Process frame for bar detection
+                frame = self.process_frame(frame)
 
-                # Set window size to match frame size on the first frame
                 if first_frame:
                     height, width, _ = frame.shape
-                    cv2.resizeWindow(window_name, width, height)
-                    first_frame = False  # Only set size once
+                    cv2.resizeWindow(self.window_name, width, height)
+                    first_frame = False
 
-                cv2.imshow(window_name, frame)
-                cv2.setWindowProperty(window_name, cv2.WND_PROP_TOPMOST, 1)  # Reinforce on top
+                cv2.imshow(self.window_name, frame)
+                cv2.setWindowProperty(self.window_name, cv2.WND_PROP_TOPMOST, 1)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            # This keeps the window responsive
+            cv2.waitKey(1)
+
+            # Check if ESC was pressed globally
+            if self.esc_pressed:
                 self.running = False
-                break
 
+        # Cleanup
+        listener.stop()
+        try:
+            cv2.destroyWindow(self.window_name)
+        except cv2.error as e:
+            print(f"[OpenCV] Error destroying window: {e}")
         cv2.destroyAllWindows()
+
+    def _on_key_press(self, key):
+        """Global keypress callback"""
+        if key == keyboard.Key.esc:
+            print("[Debugger] ESC detected globally.")
+            self.esc_pressed = True
