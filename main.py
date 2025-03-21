@@ -5,8 +5,8 @@ from debugger_gui import DebuggerGUI
 from controller import Controller
 
 if __name__ == "__main__":
-    frame_queue = queue.Queue(maxsize=10)
-    centers_queue = queue.Queue(maxsize=10)
+    frame_queue = queue.Queue(maxsize=1)
+    centers_queue = queue.Queue(maxsize=1)
 
     capture_tool = LiveScreenCapture(frame_queue)
     capture_tool.start_mouse_listener()
