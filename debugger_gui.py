@@ -23,12 +23,12 @@ class DebuggerGUI:
 
         # Scan left to right for the first strong vertical edge
         left_x = 0
-        while left_x < width - 1 and np.mean(edge_image[:, left_x]) < 50:  # Edge threshold
+        while left_x < width - 1 and np.mean(edge_image[:, left_x]) < 30:  # Edge threshold
             left_x += 1
 
         # Scan right to left for the first strong vertical edge
         right_x = width - 1
-        while right_x > 0 and np.mean(edge_image[:, right_x]) < 50:
+        while right_x > 0 and np.mean(edge_image[:, right_x]) < 30:
             right_x -= 1
 
         # Ensure valid detection
